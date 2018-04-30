@@ -1,0 +1,86 @@
+---
+title: "Banking_analytics_assg"
+author: "Saheli Paul"
+date: "19 March 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tseries)
+library(fpp)
+library(forecast)
+library(Quandl)
+library(ggplot2)
+
+
+Quandl.api_key("yn7uERLHNcDuDGx1fJxy")
+stock = Quandl("BSE/BOM580001",start_date="2003-04-21")[, c("Date", "Close")]
+market = Quandl("BSE/SENSEX",start_date="2003-04-21")[, c("Date", "Close")]
+View(stock)
+View(market)
+ggplot(stock,aes(Date,Close)) + geom_line() +  scale_x_date('month') + ylab("stock$Close") + xlab(" ")
+ggplot(market,aes(Date,Close)) + geom_line() + scale_x_date('month') + ylab("market$Close") + xlab(" ")
+summary(stock)
+summary(market)
+
+dim(stock)
+dim(market)
+data=merge(stock,market,by="Date",all.x=T)
+data=na.omit(data)
+## Daily returns
+data$ri = rep(0,nrow(data))
+data$rm = rep(0,nrow(data))
+data[1,]$ri = NA
+data[1,]$rm = NA
+data[2:nrow(data),]$ri = round((data[2:nrow(data),]$Close.x-data[1:nrow(data)-1,]$Close.x)*100/data[1:nrow(data)-1,]$Close.x,5)
+data[2:nrow(data),]$rm = round((data[2:nrow(data),]$Close.y-data[1:nrow(data)-1,]$Close.y)*100/data[1:nrow(data)-1,]$Close.y,5)
+
+
+# Daily Beta
+data2 = na.omit(data)
+View(data2)
+data2$ri = as.numeric(data2$ri)
+data2$rm = as.numeric(data2$rm)
+beta = cov(data2$ri, data2$rm)/((sd(data2$rm))^2)
+beta
+
+# Weekly Beta
+ri_w = round((data[6:nrow(data),]$Close.x-data[6:nrow(data)-5,]$Close.x)*100/data[6:nrow(data)-5,]$Close.x,5)
+rm_w = round((data[6:nrow(data),]$Close.y-data[6:nrow(data)-5,]$Close.y)*100/data[6:nrow(data)-5,]$Close.y,5)
+beta_w = cov(ri_w, rm_w)/(var(rm_w))
+beta_w
+
+# Monthly Beta
+ri_m = round((data[21:nrow(data),]$Close.x-data[21:nrow(data)-20,]$Close.x)*100/data[21:nrow(data)-20,]$Close.x,5)
+rm_m = round((data[21:nrow(data),]$Close.y-data[21:nrow(data)-20,]$Close.y)*100/data[21:nrow(data)-20,]$Close.y,5)
+beta_m = cov(ri_m, rm_m)/var(rm_m)
+beta_m
+## Time Series
+scb_ts = ts(stock$Close, frequency=248, start=c(2013,3), end=c(2018,3))
+scb_decomposed = decompose(scb_ts)
+plot(scb_decomposed)
+adf.test(scb_ts)
+
+library(forecast)
+scb = auto.arima(scb_ts)
+scb_f = forecast(scb, level=95, h=730)
+plot(scb_f)
+
+# Revenue and profits
+
+revenue = c(21566,	16950,	12450,	11907, 9650)
+year = c(2017, 2016, 2015, 2014, 2013)
+r= data.frame(as.factor(year), revenue)
+ggplot(r,aes(year, revenue, fill=as.factor(year))) + geom_bar(stat='identity') +  ggtitle("Revenue 2013-2017") + theme(legend.position = "none")
+
+netprofit = c(6087, 5450, 9573, 10864, 8673)
+p = data.frame(as.factor(year), netprofit)
+ggplot(r,aes(year, netprofit, fill=as.factor(year))) + geom_bar(stat='identity') + ggtitle("Net Profit 2013-2017")
+
+```
+
+
